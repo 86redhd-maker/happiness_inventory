@@ -129,6 +129,9 @@ const state = {
 /* ── 화면 전환 ── */
 let currentScreen = 'screen-login';
 
+// 드래그 이벤트 클린업용
+let dragCleanupFns = [];
+
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(id);
@@ -337,8 +340,6 @@ function initItemSelection() {
 }
 
 /* ── 4. 인벤토리 드래그&드롭 ── */
-let sortablePool = null;
-let sortableSlots = [];
 
 function renderInventory() {
   const pool = document.getElementById('card-pool');
@@ -417,30 +418,16 @@ function createMiniCard(item) {
 }
 
 function initDragDrop() {
+  // 이전 이벤트 리스너 정리
+  dragCleanupFns.forEach(fn => fn());
+  dragCleanupFns = [];
+
   const pool = document.getElementById('card-pool');
   const zones = document.querySelectorAll('.slot-drop-zone');
 
-  // SortableJS로 pool 내부 정렬 (사용 안 하지만 터치 감지 위해)
-  if (sortablePool) { sortablePool.destroy(); sortablePool = null; }
-  sortableSlots.forEach(s => s && s.destroy());
-  sortableSlots = [];
-
-  // 커스텀 드래그 (mouse + touch 통합)
   let draggingCard = null;
   let draggingClone = null;
   let originZone = null;
-
-  function getCardCode(card) { return card?.dataset?.code; }
-
-  function findSlotZone(el) {
-    return el?.closest?.('.slot-drop-zone') || null;
-  }
-  function findPool(el) {
-    return el?.closest?.('#card-pool') || null;
-  }
-  function isInInventoryArea(el) {
-    return findSlotZone(el) || findPool(el);
-  }
 
   function getClientXY(e) {
     if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -453,6 +440,13 @@ function initDragDrop() {
     const el = document.elementFromPoint(x, y);
     if (exclude) exclude.style.display = '';
     return el;
+  }
+
+  function findSlotZone(el) {
+    return el?.closest?.('.slot-drop-zone') || null;
+  }
+  function findPool(el) {
+    return el?.closest?.('#card-pool') || null;
   }
 
   function startDrag(e, card) {
@@ -480,7 +474,6 @@ function initDragDrop() {
     draggingClone.style.left = `${x}px`;
     draggingClone.style.top = `${y}px`;
 
-    // 하이라이트
     zones.forEach(z => z.classList.remove('drag-over'));
     const el = getElementAtPoint(x, y, draggingClone);
     const zone = findSlotZone(el);
@@ -503,7 +496,6 @@ function initDragDrop() {
     } else if (targetPool) {
       dropToPool(draggingCard);
     } else {
-      // 원래 자리로 복귀
       restoreCard(draggingCard, originZone);
     }
 
@@ -516,21 +508,16 @@ function initDragDrop() {
   }
 
   function dropToZone(card, zone) {
-    const rank = parseInt(zone.dataset.rank);
     const existingCard = zone.querySelector('.mini-card');
-
     if (existingCard && existingCard !== card) {
-      // 슬롯에 이미 카드가 있으면 교환
       const originSlot = card.closest('.slot-drop-zone');
       if (originSlot) {
         originSlot.appendChild(existingCard);
         originSlot.classList.add('filled');
       } else {
-        // originZone이 pool이면 pool로 이동
         document.getElementById('card-pool').appendChild(existingCard);
       }
     }
-
     zone.innerHTML = '';
     zone.appendChild(card);
     zone.classList.add('filled');
@@ -549,22 +536,37 @@ function initDragDrop() {
     if (origin) origin.appendChild(card);
   }
 
-  // 이벤트 등록 (이벤트 위임)
   const inventoryArea = document.querySelector('.inventory-layout');
 
-  inventoryArea.addEventListener('mousedown', e => {
+  const onMouseDown = e => {
     const card = e.target.closest('.mini-card');
     if (card) startDrag(e, card);
-  });
-  document.addEventListener('mousemove', moveDrag);
-  document.addEventListener('mouseup', endDrag);
+  };
+  const onMouseMove = e => moveDrag(e);
+  const onMouseUp = e => endDrag(e);
+  const onTouchStart = e => {
+    const card = e.target.closest('.mini-card');
+    if (card) startDrag(e, card);
+  };
+  const onTouchMove = e => moveDrag(e);
+  const onTouchEnd = e => endDrag(e);
 
-  inventoryArea.addEventListener('touchstart', e => {
-    const card = e.target.closest('.mini-card');
-    if (card) startDrag(e, card);
-  }, { passive: false });
-  document.addEventListener('touchmove', moveDrag, { passive: false });
-  document.addEventListener('touchend', endDrag);
+  inventoryArea.addEventListener('mousedown', onMouseDown);
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+  inventoryArea.addEventListener('touchstart', onTouchStart, { passive: false });
+  document.addEventListener('touchmove', onTouchMove, { passive: false });
+  document.addEventListener('touchend', onTouchEnd);
+
+  // 클린업 함수 등록
+  dragCleanupFns.push(() => {
+    inventoryArea.removeEventListener('mousedown', onMouseDown);
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    inventoryArea.removeEventListener('touchstart', onTouchStart);
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onTouchEnd);
+  });
 }
 
 function updateInventoryState() {
@@ -631,8 +633,9 @@ function renderSecurityScreen() {
     if (state.securityCode.length !== 3) return;
     state.inventoryLocked = true;
     assignCurses();
-    showScreen('screen-curse-intro');
-    renderCurseIntro();
+    // 보안코드 설정 후 → 미션1 먼저
+    showScreen('screen-mission1');
+    renderMission1();
   };
 }
 
@@ -759,6 +762,7 @@ function renderMission1() {
     renderInventory();
   };
   document.getElementById('btn-m1-next').onclick = () => {
+    // 미션1 완료 후 → 저주 인트로 → 미션2
     showScreen('screen-curse-intro');
     renderCurseIntro();
   };
@@ -993,7 +997,7 @@ function initNavBar() {
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const target = btn.dataset.target;
-      if (!state.inventoryLocked && target !== 'screen-inventory') return;
+      if (!state.inventoryLocked) return;
 
       if (target === 'screen-inventory') {
         showScreen('screen-inventory');
@@ -1002,6 +1006,7 @@ function initNavBar() {
         showScreen('screen-mission1');
         renderMission1();
       } else if (target === 'screen-mission2') {
+        // 네비에서 미션2 직접 접근은 허용 (이미 저주 인트로를 본 이후)
         showScreen('screen-mission2');
         renderMission2();
       } else if (target === 'screen-mission3') {
