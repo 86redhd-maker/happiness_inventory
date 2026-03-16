@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>행복 인벤토리</title>
+
+  <!-- Maplestory 웹폰트 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2307-2@1.0/MapleStoryLight.woff2" crossorigin />
+  <style>
+    @font-face {
+      font-family: 'Maplestory';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2307-2@1.0/MapleStoryLight.woff2') format('woff2');
+      font-weight: 300;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Maplestory';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2307-2@1.0/MapleStoryBold.woff2') format('woff2');
+      font-weight: 700;
+      font-style: normal;
+    }
+  </style>
+  <!-- Noto Sans KR fallback -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet" />
+
+  <!-- SortableJS (터치 드래그&드롭 지원) -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===== SCREEN: 학번/이름 입력 ===== -->
+  <div id="screen-login" class="screen active">
+    <div class="screen-inner center-content">
+      <div class="pixel-deco top-left"></div>
+      <div class="pixel-deco top-right"></div>
+      <div class="login-box">
+        <div class="system-tag">[ SYSTEM ]</div>
+        <h1 class="title-main">행복 인벤토리</h1>
+        <p class="subtitle">통합사회1 · 수행평가</p>
+        <div class="input-group">
+          <label for="input-student-id">학번</label>
+          <input type="text" id="input-student-id" inputmode="numeric" maxlength="5" placeholder="예: 10101" autocomplete="off" />
+          <span class="input-hint" id="hint-student-id"></span>
+        </div>
+        <div class="input-group">
+          <label for="input-student-name">이름</label>
+          <input type="text" id="input-student-name" maxlength="10" placeholder="이름을 입력하세요" autocomplete="off" />
+          <span class="input-hint" id="hint-student-name"></span>
+        </div>
+        <button class="btn-primary" id="btn-login">시작하기 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: 튜토리얼 ===== -->
+  <div id="screen-tutorial" class="screen">
+    <div class="screen-inner">
+      <div class="tutorial-terminal">
+        <div class="terminal-bar">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="terminal-title">SYSTEM.exe</span>
+        </div>
+        <div class="terminal-body" id="tutorial-text"></div>
+        <button class="btn-primary btn-terminal" id="btn-tutorial-next">자판기로 이동 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: 아이템 선택 ===== -->
+  <div id="screen-items" class="screen">
+    <div class="screen-inner">
+      <div class="mission-header">
+        <div class="system-tag">[ 자판기 ]</div>
+        <h2>아이템 6개를 선택하세요</h2>
+        <p class="mission-desc">10개 중 6개만 뽑을 수 있습니다. 선택한 아이템이 이 세계에서 당신의 전부입니다.</p>
+        <div class="select-counter">
+          <span id="selected-count">0</span> / 6 선택됨
+        </div>
+      </div>
+      <div class="items-grid" id="items-grid">
+        <!-- 아이템 카드 JS로 생성 -->
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" id="btn-items-next" disabled>인벤토리 구성하기 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: 인벤토리 (우선순위 드래그&드롭) ===== -->
+  <div id="screen-inventory" class="screen">
+    <div class="screen-inner">
+      <div class="mission-header">
+        <div class="system-tag">[ 인벤토리 ]</div>
+        <h2>우선순위를 정하세요</h2>
+        <p class="mission-desc">선택한 6개 아이템을 드래그해서 1~6순위 슬롯에 배치하세요.</p>
+      </div>
+
+      <div class="inventory-layout">
+        <!-- 순위 슬롯 -->
+        <div class="rank-slots-area">
+          <div class="rank-slots-label">▼ 순위 슬롯 (드래그해서 채우세요)</div>
+          <div class="rank-slots" id="rank-slots">
+            <div class="rank-slot" data-rank="1"><span class="rank-num">1순위</span><div class="slot-drop-zone" data-rank="1"></div></div>
+            <div class="rank-slot" data-rank="2"><span class="rank-num">2순위</span><div class="slot-drop-zone" data-rank="2"></div></div>
+            <div class="rank-slot" data-rank="3"><span class="rank-num">3순위</span><div class="slot-drop-zone" data-rank="3"></div></div>
+            <div class="rank-slot" data-rank="4"><span class="rank-num">4순위</span><div class="slot-drop-zone" data-rank="4"></div></div>
+            <div class="rank-slot" data-rank="5"><span class="rank-num">5순위</span><div class="slot-drop-zone" data-rank="5"></div></div>
+            <div class="rank-slot" data-rank="6"><span class="rank-num">6순위</span><div class="slot-drop-zone" data-rank="6"></div></div>
+          </div>
+        </div>
+
+        <!-- 대기 카드 풀 -->
+        <div class="card-pool-area">
+          <div class="rank-slots-label">▼ 선택한 아이템 (순위 슬롯으로 드래그하세요)</div>
+          <div class="card-pool" id="card-pool"></div>
+        </div>
+      </div>
+
+      <div class="inventory-status" id="inventory-status"></div>
+      <div class="btn-row">
+        <button class="btn-secondary" id="btn-inventory-back">← 다시 선택</button>
+        <button class="btn-primary" id="btn-inventory-next" disabled>보안 코드 설정 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: 보안 코드 설정 ===== -->
+  <div id="screen-security" class="screen">
+    <div class="screen-inner center-content">
+      <div class="security-box">
+        <div class="terminal-bar">
+          <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+          <span class="terminal-title">SECURITY.exe</span>
+        </div>
+        <div class="security-body">
+          <div class="system-tag blink">[ SYSTEM ]</div>
+          <p class="security-desc">이 세계는 불안정합니다.<br/>만약을 대비해 <strong>1~6 중 서로 다른 숫자 3개</strong>로 보안 코드를 설정하세요.<br/>이 코드는 나중에 사용됩니다. 어디에 쓰이는지는 지금 알려드릴 수 없습니다.</p>
+
+          <div class="security-input-area">
+            <div class="security-label">나의 보안 코드:</div>
+            <div class="security-buttons" id="security-buttons">
+              <!-- 1~6 버튼 JS로 생성 -->
+            </div>
+            <div class="security-selected" id="security-selected">
+              <div class="sec-slot" id="sec-slot-0">?</div>
+              <div class="sec-slot" id="sec-slot-1">?</div>
+              <div class="sec-slot" id="sec-slot-2">?</div>
+            </div>
+            <button class="btn-ghost" id="btn-security-reset">초기화</button>
+          </div>
+
+          <div class="security-warning" id="security-warning"></div>
+          <div class="btn-row">
+            <button class="btn-secondary" id="btn-security-back">← 뒤로</button>
+            <button class="btn-primary" id="btn-security-next" disabled>미션 시작 →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: MISSION 1 ===== -->
+  <div id="screen-mission1" class="screen">
+    <div class="screen-inner">
+      <div class="mission-header">
+        <div class="system-tag">[ MISSION 1 ]</div>
+        <h2>나의 행복 스캔</h2>
+        <p class="mission-system-msg">자판기가 닫히기 전, 당신이 고른 아이템을 스캔합니다.</p>
+        <div class="mission-question-box">
+          <p class="mission-question">선택한 아이템이 당신에게 주는 행복은 어떤 종류의 행복인지, 수업에서 배운 <strong>행복의 의미와 기준</strong>(동서양 사상, 객관적 조건, 시대·지역에 따른 기준 등) 중 하나 이상을 활용하여 설명하고, 이 아이템이 작동하고 있는 당신의 하루를 묘사하세요.</p>
+        </div>
+      </div>
+
+      <div id="mission1-questions">
+        <!-- JS로 생성: 1~3순위 아이템 서술란 -->
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-secondary" id="btn-m1-back">← 뒤로</button>
+        <button class="btn-primary" id="btn-m1-next">미션 2로 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: MISSION 2 (저주 이벤트 진입 연출) ===== -->
+  <div id="screen-curse-intro" class="screen">
+    <div class="screen-inner center-content">
+      <div class="curse-warning-box" id="curse-warning-box">
+        <div class="curse-icon">⚡</div>
+        <div class="curse-title">[ SYSTEM WARNING ]</div>
+        <div class="curse-msg">보안 코드가 역추적당했습니다.</div>
+        <div class="curse-sub">당신이 설정한 보안 코드의 숫자에 해당하는<br/>순위 아이템에 저주가 침투했습니다.</div>
+        <div class="curse-code-display" id="curse-code-display"></div>
+        <button class="btn-danger" id="btn-curse-proceed">저주 확인하기 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: MISSION 2 ===== -->
+  <div id="screen-mission2" class="screen">
+    <div class="screen-inner">
+      <div class="mission-header">
+        <div class="system-tag warning">[ MISSION 2 ]</div>
+        <h2>저주 이벤트</h2>
+      </div>
+
+      <div id="mission2-questions">
+        <!-- JS로 생성: 저주 3개 -->
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-secondary" id="btn-m2-back">← 뒤로</button>
+        <button class="btn-primary" id="btn-m2-next">미션 3으로 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: MISSION 3 ===== -->
+  <div id="screen-mission3" class="screen">
+    <div class="screen-inner">
+      <div class="mission-header">
+        <div class="system-tag special">[ MISSION 3 ]</div>
+        <h2>아이템 크래프팅</h2>
+        <p class="mission-system-msg">히든 퀘스트가 해금되었습니다. 축하합니다. 모든 시련을 통과한 당신에게 특별한 권한이 주어집니다.</p>
+        <p class="mission-system-msg">인벤토리에 있는 아이템 2개를 조합하여 세상에 없던 새로운 아이템을 만들 수 있습니다.</p>
+      </div>
+
+      <div class="craft-section">
+        <div class="craft-question-label">(1) 조합할 아이템 2개와, 새로 만들 아이템의 이름 + 한 줄 설명을 쓰세요.</div>
+        <div class="craft-example">예시) '레벨업의 돋보기' + '끊어지지 않는 실전화기' → '함께 성장하는 연습실': 서로의 성장을 응원하며 함께 훈련할 수 있는 공간.</div>
+
+        <div class="craft-selectors">
+          <div class="craft-selector-wrap">
+            <label>아이템 1</label>
+            <select id="craft-item1" class="craft-select"></select>
+          </div>
+          <div class="craft-plus">+</div>
+          <div class="craft-selector-wrap">
+            <label>아이템 2</label>
+            <select id="craft-item2" class="craft-select"></select>
+          </div>
+        </div>
+
+        <div class="craft-arrow">↓ 조합 결과</div>
+
+        <div class="input-group">
+          <label>새 아이템 이름</label>
+          <input type="text" id="craft-new-name" maxlength="30" placeholder="새 아이템 이름을 입력하세요" />
+        </div>
+        <div class="input-group">
+          <label>한 줄 설명</label>
+          <input type="text" id="craft-new-desc" maxlength="100" placeholder="한 줄로 설명하세요" />
+          <div class="char-counter"><span id="craft-desc-count">0</span> / 100자</div>
+        </div>
+      </div>
+
+      <div class="craft-section">
+        <div class="craft-question-label">(2) 새로 만든 아이템이 당신에게 어떤 행복을 가져다줄지 쓰세요.</div>
+        <div class="textarea-wrap">
+          <textarea id="craft-happiness" rows="6" placeholder="새 아이템이 가져다줄 행복에 대해 자유롭게 서술하세요..."></textarea>
+          <div class="char-counter"><span id="craft-happiness-count">0</span>자</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-secondary" id="btn-m3-back">← 뒤로</button>
+        <button class="btn-primary" id="btn-m3-next">제출 확인 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: 제출 확인 ===== -->
+  <div id="screen-submit" class="screen">
+    <div class="screen-inner">
+      <div class="mission-header">
+        <div class="system-tag">[ 제출 확인 ]</div>
+        <h2>최종 제출 전 확인하세요</h2>
+      </div>
+
+      <div class="submit-preview" id="submit-preview">
+        <!-- JS로 생성 -->
+      </div>
+
+      <div class="submit-actions">
+        <button class="btn-secondary" id="btn-submit-back">← 수정하기</button>
+        <button class="btn-ghost" id="btn-download-pdf">📄 PDF 저장</button>
+        <button class="btn-primary btn-submit" id="btn-submit-final">제출하기 ✓</button>
+      </div>
+
+      <div class="submit-status" id="submit-status"></div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: 제출 완료 ===== -->
+  <div id="screen-done" class="screen">
+    <div class="screen-inner center-content">
+      <div class="done-box">
+        <div class="done-icon">✅</div>
+        <div class="system-tag">[ MISSION COMPLETE ]</div>
+        <h2>제출이 완료되었습니다</h2>
+        <p id="done-student-info"></p>
+        <p class="done-msg">수고하셨습니다. 자판기는 사라졌지만, 당신의 선택은 남아있습니다.</p>
+        <button class="btn-ghost" id="btn-done-pdf">📄 PDF 저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 네비게이션 바 (보안코드 설정 이후 표시) -->
+  <nav class="progress-nav" id="progress-nav" style="display:none">
+    <button class="nav-btn" data-target="screen-inventory">인벤토리</button>
+    <button class="nav-btn" data-target="screen-mission1">미션1</button>
+    <button class="nav-btn" data-target="screen-mission2">미션2</button>
+    <button class="nav-btn" data-target="screen-mission3">미션3</button>
+    <button class="nav-btn" data-target="screen-submit">제출</button>
+  </nav>
+
+  <script src="app.js"></script>
+  <script src="submit.js"></script>
+</body>
+</html>
