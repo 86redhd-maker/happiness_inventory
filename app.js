@@ -415,8 +415,14 @@ function createMiniCard(item) {
   card.className = 'mini-card';
   card.dataset.code = item.code;
   card.draggable = !state.inventoryLocked;
+
+  const iconHtml = `<div class="mini-icon-wrap">
+    <img src="${item.iconImg}" alt="${item.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/>
+    <span class="mini-icon-emoji" style="display:none">${item.icon}</span>
+  </div>`;
+
   card.innerHTML = `
-    <span class="mini-icon">${item.icon}</span>
+    ${iconHtml}
     <div class="mini-text">
       <div class="mini-name">${item.name}</div>
       <div class="mini-concept">${item.concept}</div>
