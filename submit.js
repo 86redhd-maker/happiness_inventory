@@ -5,7 +5,7 @@
 
 /* ── Google Apps Script 웹앱 URL ──
    배포 후 이 URL을 실제 주소로 교체하세요 */
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzYFjm3gMOLsLMGH0XRXwV77-r9tfKVf3h9mGx6R7Nwen3_vaaxoRlWtJq3KT0LI60MqA/exec';
+const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
 
 /* ── 전송 데이터 구성 ── */
 function buildSubmitData() {
@@ -127,121 +127,139 @@ async function submitData() {
   }
 }
 
-/* ── PDF 생성 ──
-   jsPDF는 기본 한글 미지원.
-   현재 버전: 영문/숫자 정상, 한글은 placeholder(□)로 출력됨.
-   한글 폰트 임베딩 준비 시 아래 FONT_READY 블록 활성화 필요.
-   
-   [한글 폰트 임베딩 방법 (나중에 적용)]
-   1. NanumGothic 또는 Noto Sans KR woff2 → base64 변환
-   2. jsPDF.addFileToVFS / addFont / setFont 으로 등록
-   3. FONT_READY = true로 변경
+/* ── 인쇄/PDF 저장 ──
+   브라우저 인쇄 기능 활용 — 한글 완벽 지원
+   인쇄 창에서 "PDF로 저장" 선택 가능
 */
-const FONT_READY = false; // 한글 폰트 준비 전까지 false 유지
-
 function downloadPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-
-  const W = 210; // A4 너비
-  const marginL = 18, marginR = 18;
-  const lineW = W - marginL - marginR;
-  let y = 20;
-  const lineH = 6.5;
-
-  function addLine(text, opts = {}) {
-    const { bold = false, size = 10, color = '#2c2c3e', indent = 0 } = opts;
-    doc.setFontSize(size);
-    doc.setFont('helvetica', bold ? 'bold' : 'normal');
-
-    if (text === '---') {
-      doc.setDrawColor(180, 175, 165);
-      doc.line(marginL, y, W - marginR, y);
-      y += 4;
-      return;
-    }
-
-    // 한글 처리: FONT_READY가 false면 한글을 □ 로 대체 (임시)
-    const safeText = FONT_READY ? text : text.replace(/[^\x00-\x7F]/g, '□');
-
-    const lines = doc.splitTextToSize(safeText, lineW - indent);
-    lines.forEach(line => {
-      if (y > 275) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.setTextColor(color);
-      doc.text(line, marginL + indent, y);
-      y += lineH;
-    });
+  // 인쇄용 창 생성
+  const printWin = window.open('', '_blank');
+  if (!printWin) {
+    alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.');
+    return;
   }
 
-  function section(title) {
-    y += 3;
-    addLine(title, { bold: true, size: 11, color: '#4a7fd4' });
-    addLine('---');
-  }
+  const notSelected = getNotSelectedItems().map(i => i.name).join(', ');
+  const curseLabels = { A: '저주A', B: '저주B', C: '저주C' };
 
-  // ── 헤더
-  addLine('행복 인벤토리 — 수행평가 답안', { bold: true, size: 16 });
-  addLine(`통합사회1 · 2단원`, { size: 9, color: '#888' });
-  y += 4;
-  addLine('---');
+  // 미션2 저주 HTML
+  const mission2HTML = state.curses.map((curse, idx) => {
+    const key = `curse${idx + 1}`;
+    const data = state.mission2[key];
+    const replaceItem = data.newItemCode ? getItemByCode(data.newItemCode)?.name : '';
+    return `
+      <div class="block">
+        <div class="block-header">(${idx+1}) ${curseLabels[curse.curseType]} → ${curse.rank}순위: ${curse.itemName}</div>
+        <div class="meta">선택: ${data.choice || '(미선택)'}${replaceItem ? ' → ' + replaceItem : ''} · ${data.charCount}자</div>
+        <div class="response">${data.response || '(미작성)'}</div>
+      </div>
+    `;
+  }).join('');
 
-  // ── 기본 정보
-  section('[ 기본 정보 ]');
-  addLine(`학번: ${state.studentId}`, { size: 10 });
-  addLine(`이름: ${state.studentName}`, { size: 10 });
-  addLine(`제출시각: ${new Date().toLocaleString('ko-KR')}`, { size: 9, color: '#888' });
-  addLine(`보안코드: ${state.securityCode.join('-')}`, { size: 10 });
-
-  // ── 인벤토리
-  section('[ 인벤토리 ]');
-  state.inventory.forEach(inv => {
-    addLine(`${inv.rank}순위: ${inv.name} (${inv.concept})`, { size: 10 });
-  });
-  const notSel = getNotSelectedItems().map(i => i.name).join(', ');
-  addLine(`미선택: ${notSel}`, { size: 9, color: '#888' });
-
-  // ── 미션1
-  section('[ MISSION 1 — 나의 행복 스캔 ]');
-  [1,2,3].forEach(rank => {
+  // 미션1 HTML
+  const mission1HTML = [1,2,3].map(rank => {
     const inv = state.inventory.find(i => i.rank === rank);
     const key = `q${rank}`;
     const data = state.mission1[key];
-    addLine(`(${rank}) ${rank}순위: ${inv?.name}`, { bold: true, size: 10 });
-    addLine(`글자수: ${data.charCount}자`, { size: 9, color: '#888' });
-    addLine(data.response || '(미작성)', { size: 10, indent: 4 });
-    y += 2;
-  });
+    return `
+      <div class="block">
+        <div class="block-header">(${rank}) ${rank}순위: ${inv?.name}</div>
+        <div class="meta">${data.charCount}자</div>
+        <div class="response">${data.response || '(미작성)'}</div>
+      </div>
+    `;
+  }).join('');
 
-  // ── 미션2
-  section('[ MISSION 2 — 저주 이벤트 ]');
-  const curseLabels2 = { A: '저주A', B: '저주B', C: '저주C' };
-  state.curses.forEach((curse, idx) => {
-    const key = `curse${idx+1}`;
-    const data = state.mission2[key];
-    const replaceItem = data.newItemCode ? getItemByCode(data.newItemCode)?.name : '';
-    addLine(`(${idx+1}) ${curseLabels2[curse.curseType]} → ${curse.rank}순위: ${curse.itemName}`, { bold: true, size: 10 });
-    addLine(`선택: ${data.choice || '(미선택)'}${replaceItem ? ' → ' + replaceItem : ''}`, { size: 9, color: '#888' });
-    addLine(`글자수: ${data.charCount}자`, { size: 9, color: '#888' });
-    addLine(data.response || '(미작성)', { size: 10, indent: 4 });
-    y += 2;
-  });
+  // 인벤토리 HTML
+  const inventoryHTML = state.inventory
+    .sort((a,b) => a.rank - b.rank)
+    .map(inv => `<div class="inv-row"><span class="rank-tag">${inv.rank}순위</span> ${inv.name} <span class="concept">(${inv.concept})</span></div>`)
+    .join('');
 
-  // ── 미션3
-  section('[ MISSION 3 — 아이템 크래프팅 ]');
   const item1Name = state.mission3.item1Code ? getItemByCode(state.mission3.item1Code)?.name : '(미선택)';
   const item2Name = state.mission3.item2Code ? getItemByCode(state.mission3.item2Code)?.name : '(미선택)';
-  addLine(`조합: ${item1Name} + ${item2Name}`, { size: 10 });
-  addLine(`새 아이템: ${state.mission3.newItemName || '(미입력)'}`, { size: 10 });
-  addLine(`설명: ${state.mission3.newItemDesc || '(미입력)'}`, { size: 10 });
-  addLine(`행복 서술 (${state.mission3.charCount}자):`, { size: 9, color: '#888' });
-  addLine(state.mission3.happinessResponse || '(미작성)', { size: 10, indent: 4 });
 
-  // ── 저장
-  const filename = `행복인벤토리_${state.studentId}_${state.studentName}.pdf`;
-  doc.save(filename);
+  const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <title>행복 인벤토리 — ${state.studentId} ${state.studentName}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Noto Sans KR', sans-serif; font-size: 12px; color: #1a1a2e; line-height: 1.7; padding: 20px 28px; }
+    h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { font-size: 11px; color: #888; margin-bottom: 16px; }
+    .info-row { display: flex; gap: 24px; margin-bottom: 16px; font-size: 12px; }
+    .info-item { display: flex; gap: 6px; }
+    .info-label { font-weight: 700; color: #5a5a7a; }
+    .section { margin-bottom: 20px; page-break-inside: avoid; }
+    .section-title { font-size: 11px; font-weight: 700; color: #4a7fd4; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 2px solid #e0eaff; padding-bottom: 4px; margin-bottom: 12px; }
+    .inv-row { margin-bottom: 4px; }
+    .rank-tag { display: inline-block; background: #4a7fd4; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 7px; margin-right: 6px; }
+    .concept { color: #4a7fd4; font-size: 11px; }
+    .not-selected { color: #888; font-size: 11px; margin-top: 6px; }
+    .block { margin-bottom: 14px; padding: 10px 12px; border-left: 3px solid #4a7fd4; background: #f8f9ff; page-break-inside: avoid; }
+    .block-header { font-weight: 700; margin-bottom: 4px; }
+    .meta { font-size: 10px; color: #888; margin-bottom: 6px; }
+    .response { color: #2c2c3e; white-space: pre-wrap; line-height: 1.8; }
+    .craft-row { margin-bottom: 6px; }
+    .craft-label { font-weight: 700; color: #5a5a7a; }
+    @media print {
+      body { padding: 10px 20px; }
+      .section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <h1>행복 인벤토리 — 수행평가 답안</h1>
+  <div class="subtitle">통합사회1 · 2단원 · ${new Date().toLocaleString('ko-KR')}</div>
+
+  <div class="info-row">
+    <div class="info-item"><span class="info-label">학번</span> ${state.studentId}</div>
+    <div class="info-item"><span class="info-label">이름</span> ${state.studentName}</div>
+    <div class="info-item"><span class="info-label">보안코드</span> ${state.securityCode.join('-')}</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">[ 인벤토리 ]</div>
+    ${inventoryHTML}
+    <div class="not-selected">미선택: ${notSelected}</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">[ MISSION 1 — 나의 행복 스캔 ]</div>
+    ${mission1HTML}
+  </div>
+
+  <div class="section">
+    <div class="section-title">[ MISSION 2 — 저주 이벤트 ]</div>
+    ${mission2HTML}
+  </div>
+
+  <div class="section">
+    <div class="section-title">[ MISSION 3 — 아이템 크래프팅 ]</div>
+    <div class="block">
+      <div class="craft-row"><span class="craft-label">조합:</span> ${item1Name} + ${item2Name}</div>
+      <div class="craft-row"><span class="craft-label">새 아이템:</span> ${state.mission3.newItemName || '(미입력)'}</div>
+      <div class="craft-row"><span class="craft-label">설명:</span> ${state.mission3.newItemDesc || '(미입력)'}</div>
+      <div class="meta">행복 서술 · ${state.mission3.charCount}자</div>
+      <div class="response">${state.mission3.happinessResponse || '(미작성)'}</div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  printWin.document.write(html);
+  printWin.document.close();
+
+  // 폰트 로딩 후 인쇄 창 열기
+  printWin.onload = () => {
+    setTimeout(() => {
+      printWin.focus();
+      printWin.print();
+    }, 600);
+  };
 }
 
 /* ─────────────────────────────────────────────
