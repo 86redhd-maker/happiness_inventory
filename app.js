@@ -104,9 +104,11 @@ const state = {
   selectedItems: [],       // 선택한 아이템 code 배열 (순서 무관)
   inventory: [],           // [{rank:1, code:'A', name:..., concept:...}, ...]
   inventoryLocked: false,  // 보안코드 설정 후 잠금
+  curseIntroSeen: false,   // 저주 인트로 확인 후 true → 보안코드 재설정 차단
+  mission1Visited: false,  // 미션1 방문 후 true → 미션2 네비 접근 가능
   securityCode: [],        // [a, b, c]
   curses: [],              // [{rank, itemCode, itemName, curseType, ...}, ...]
-  mission1: {              // {q1:{response,charCount}, q2:..., q3:...}
+  mission1: {
     q1: { response: '', charCount: 0 },
     q2: { response: '', charCount: 0 },
     q3: { response: '', charCount: 0 }
@@ -403,6 +405,11 @@ function renderInventory() {
   document.getElementById('btn-inventory-next').onclick = () => {
     if (!isInventoryComplete()) {
       document.getElementById('inventory-status').textContent = '6개 아이템 모두 순위를 배정해주세요.';
+      return;
+    }
+    // 저주 인트로를 이미 봤으면 보안코드 재설정 불가
+    if (state.curseIntroSeen) {
+      alert('이미 저주가 배정되어 보안 코드를 변경할 수 없습니다.');
       return;
     }
     showScreen('screen-security');
@@ -728,6 +735,7 @@ function assignCurses() {
 
 /* ── 7. 저주 인트로 ── */
 function renderCurseIntro() {
+  state.curseIntroSeen = true;
   const display = document.getElementById('curse-code-display');
   display.textContent = state.securityCode.join(' — ');
 
@@ -739,6 +747,7 @@ function renderCurseIntro() {
 
 /* ── 8. 미션1 ── */
 function renderMission1() {
+  state.mission1Visited = true;
   const container = document.getElementById('mission1-questions');
   container.innerHTML = '';
 
@@ -1020,7 +1029,11 @@ function initNavBar() {
         showScreen('screen-mission1');
         renderMission1();
       } else if (target === 'screen-mission2') {
-        // 네비에서 미션2 직접 접근은 허용 (이미 저주 인트로를 본 이후)
+        // 미션1 방문 전에는 미션2 접근 불가
+        if (!state.mission1Visited) {
+          alert('미션1을 먼저 진행해주세요!');
+          return;
+        }
         showScreen('screen-mission2');
         renderMission2();
       } else if (target === 'screen-mission3') {
