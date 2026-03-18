@@ -624,6 +624,12 @@ function updateInventoryStatus() {
 
 /* ── 5. 보안 코드 ── */
 function renderSecurityScreen() {
+  // 저주 인트로 이후엔 보안코드 화면 접근 불가 — 미션1으로 리다이렉트
+  if (state.curseIntroSeen) {
+    showScreen('screen-mission1');
+    renderMission1();
+    return;
+  }
   const container = document.getElementById('security-buttons');
   container.innerHTML = '';
 
