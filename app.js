@@ -1040,6 +1040,8 @@ function initNavBar() {
           alert('미션1을 먼저 진행해주세요!');
           return;
         }
+        // 네비로 미션2 접근 시에도 저주 인트로 본 것으로 처리 → 보안코드 잠금
+        state.curseIntroSeen = true;
         showScreen('screen-mission2');
         renderMission2();
       } else if (target === 'screen-mission3') {
