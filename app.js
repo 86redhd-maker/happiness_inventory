@@ -408,9 +408,9 @@ function renderInventory() {
       document.getElementById('inventory-status').textContent = '6개 아이템 모두 순위를 배정해주세요.';
       return;
     }
-    // 저주 인트로를 이미 봤으면 보안코드 재설정 불가
-    if (state.curseIntroSeen) {
-      alert('이미 저주가 배정되어 보안 코드를 변경할 수 없습니다.');
+    // 보안코드가 이미 설정된 이후엔 재설정 불가
+    if (state.inventoryLocked) {
+      alert('이미 보안 코드가 설정되어 변경할 수 없습니다.');
       return;
     }
     showScreen('screen-security');
@@ -625,8 +625,8 @@ function updateInventoryStatus() {
 
 /* ── 5. 보안 코드 ── */
 function renderSecurityScreen() {
-  // 저주 인트로 이후엔 보안코드 화면 접근 불가 — 미션1으로 리다이렉트
-  if (state.curseIntroSeen) {
+  // 보안코드 설정 후엔 화면 접근 불가 — 미션1으로 리다이렉트
+  if (state.inventoryLocked) {
     showScreen('screen-mission1');
     renderMission1();
     return;
