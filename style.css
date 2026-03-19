@@ -415,9 +415,16 @@ textarea { resize:vertical; min-height:120px; line-height:1.8; }
 .textarea-wrap { position:relative; }
 .textarea-wrap textarea { display:block; width:100%; }
 
-/* ── 저주 인트로 ── */
-#screen-curse-intro { background:linear-gradient(160deg,#180808 0%,#2a0e0e 50%,#180818 100%); }
+/* ── 미션2 배경 ── */
+#screen-mission2 {
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(255,120,100,0.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 80%, rgba(200,60,60,0.15) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 50%, rgba(255,80,60,0.08) 0%, transparent 70%),
+    #f5eeee;
+}
 #screen-curse-intro.active { align-items:center; justify-content:center; }
+#screen-curse-intro { background:linear-gradient(160deg,#180808 0%,#2a0e0e 50%,#180818 100%); }
 .curse-warning-box {
   max-width:540px; width:100%;
   background:linear-gradient(160deg,#fff8e6,#fff0d8);
