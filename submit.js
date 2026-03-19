@@ -100,6 +100,7 @@ async function submitData() {
     });
 
     if (response.ok || response.type === 'opaqueredirect') {
+      state.submitted = true;
       statusEl.textContent = '✅ 제출이 완료되었습니다!';
       statusEl.className = 'submit-status success';
       setTimeout(() => {
