@@ -106,6 +106,7 @@ const state = {
   inventoryLocked: false,  // 보안코드 설정 후 잠금
   curseIntroSeen: false,   // 저주 인트로 확인 후 true → 보안코드 재설정 차단
   mission1Visited: false,  // 미션1 방문 후 true → 미션2 네비 접근 가능
+  submitted: false,        // 제출 완료 후 true → 재제출 방지
   securityCode: [],        // [a, b, c]
   curses: [],              // [{rank, itemCode, itemName, curseType, ...}, ...]
   mission1: {
@@ -647,11 +648,19 @@ function renderSecurityScreen() {
   updateSecBtn();
 
   document.getElementById('btn-security-reset').onclick = () => {
+    // inventoryLocked 이후엔 초기화 불가 (이미 보안코드가 설정된 상태)
+    if (state.inventoryLocked) return;
     state.securityCode = [];
     renderSecurityScreen();
   };
 
   document.getElementById('btn-security-back').onclick = () => {
+    // inventoryLocked 이후엔 뒤로가기로 보안코드 재설정 불가
+    if (state.inventoryLocked) {
+      showScreen('screen-mission1');
+      renderMission1();
+      return;
+    }
     showScreen('screen-inventory');
     renderInventory();
   };
@@ -893,6 +902,15 @@ function renderMission2() {
     renderMission1();
   };
   document.getElementById('btn-m2-next').onclick = () => {
+    // 교체 선택했는데 아이템 미선택 시 경고
+    for (let idx = 0; idx < 3; idx++) {
+      const key = `curse${idx + 1}`;
+      const data = state.mission2[key];
+      if (data.choice === '교체' && !data.newItemCode) {
+        alert(`저주 ${idx + 1}번: 교체할 아이템을 선택해주세요.`);
+        return;
+      }
+    }
     showScreen('screen-mission3');
     renderMission3();
   };
@@ -1015,6 +1033,15 @@ function renderSubmitPreview() {
   document.getElementById('btn-submit-final').onclick = () => {
     submitData();
   };
+
+  // 제출 완료 후 재제출 방지
+  if (state.submitted) {
+    const submitBtn = document.getElementById('btn-submit-final');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '이미 제출됨';
+    document.getElementById('submit-status').textContent = '✅ 이미 제출이 완료되었습니다.';
+    document.getElementById('submit-status').className = 'submit-status success';
+  }
 
   document.getElementById('btn-download-pdf').onclick = () => {
     downloadPDF();
