@@ -5,7 +5,7 @@
 
 /* ── Google Apps Script 웹앱 URL ──
    배포 후 이 URL을 실제 주소로 교체하세요 */
-const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzYFjm3gMOLsLMGH0XRXwV77-r9tfKVf3h9mGx6R7Nwen3_vaaxoRlWtJq3KT0LI60MqA/exec';
 
 /* ── 전송 데이터 구성 ── */
 function buildSubmitData() {
