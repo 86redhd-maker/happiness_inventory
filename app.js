@@ -71,13 +71,6 @@ const ITEMS = [
 const CURSES = {
   A: {
     label: '저주A',
-    getContent: (inv) => {
-      const rank1Item = inv.find(i => i.rank === 1);
-      const rank2Item = inv.find(i => i.rank === 2);
-      // 기본: 1순위 효과 약화 / 저주A가 1순위에 걸리면 2순위 약화
-      // (affectedRank는 배정 시 결정)
-      return null; // 런타임에 계산
-    },
     template: (affectedRank, affectedName, curseAOnFirst) => {
       const weakenTarget = curseAOnFirst
         ? `2순위 아이템(${affectedName})의 효과가 약해집니다.`
@@ -101,14 +94,14 @@ const CURSES = {
 const state = {
   studentId: '',
   studentName: '',
-  selectedItems: [],       // 선택한 아이템 code 배열 (순서 무관)
-  inventory: [],           // [{rank:1, code:'A', name:..., concept:...}, ...]
-  inventoryLocked: false,  // 보안코드 설정 후 잠금
-  curseIntroSeen: false,   // 저주 인트로 확인 후 true → 보안코드 재설정 차단
-  mission1Visited: false,  // 미션1 방문 후 true → 미션2 네비 접근 가능
-  submitted: false,        // 제출 완료 후 true → 재제출 방지
-  securityCode: [],        // [a, b, c]
-  curses: [],              // [{rank, itemCode, itemName, curseType, ...}, ...]
+  selectedItems: [],
+  inventory: [],
+  inventoryLocked: false,
+  curseIntroSeen: false,
+  mission1Visited: false,
+  submitted: false,
+  securityCode: [],
+  curses: [],
   mission1: {
     q1: { response: '', charCount: 0 },
     q2: { response: '', charCount: 0 },
@@ -131,9 +124,39 @@ const state = {
 
 /* ── 화면 전환 ── */
 let currentScreen = 'screen-login';
-
-// 드래그 이벤트 클린업용
 let dragCleanupFns = [];
+
+/* ── 자동 저장 (새로고침 대비) ──
+   sessionStorage는 탭을 닫으면 사라지지만, 새로고침에는 살아남음.
+   같은 아이패드를 다음 학생이 써도 탭을 닫고 다시 열면 자동으로 초기화됨. */
+const STORAGE_KEY = 'happiness_inventory_autosave';
+
+function saveSession() {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+      state: state,
+      currentScreen: currentScreen
+    }));
+  } catch (e) {
+    // 저장 실패 시 무시 (사파리 프라이빗 모드 등)
+  }
+}
+
+function loadSession() {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearSession() {
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch (e) {}
+}
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -143,13 +166,12 @@ function showScreen(id) {
     currentScreen = id;
     window.scrollTo(0, 0);
     updateNavBar(id);
+    saveSession();
   }
 }
 
 function updateNavBar(screenId) {
   const nav = document.getElementById('progress-nav');
-  const showAfter = ['screen-mission1','screen-curse-intro','screen-mission2','screen-mission3','screen-submit','screen-done'];
-  // 인벤토리 화면도 네비에 포함
   const navScreens = ['screen-inventory','screen-mission1','screen-curse-intro','screen-mission2','screen-mission3','screen-submit'];
 
   if (state.inventoryLocked && navScreens.includes(screenId)) {
@@ -172,10 +194,6 @@ function getInventoryItem(rank) {
 }
 function getNotSelectedItems() {
   return ITEMS.filter(i => !state.selectedItems.includes(i.code));
-}
-function getItemIcon(item) {
-  // 이미지가 있으면 img 태그, 없으면 이모지
-  return `<span class="mini-icon">${item.icon}</span>`;
 }
 function getItemIconFull(item) {
   const hasImg = item.iconImg;
@@ -270,7 +288,6 @@ function playTutorial() {
     }
   }
 
-  // 클릭하면 스킵
   body.addEventListener('click', () => {
     i = TUTORIAL_TEXT.length;
     body.textContent = TUTORIAL_TEXT;
@@ -322,6 +339,7 @@ function toggleItem(code) {
   }
   updateItemGrid();
   updateSelectCounter();
+  saveSession();
 }
 
 function updateItemGrid() {
@@ -343,7 +361,6 @@ function updateSelectCounter() {
 function initItemSelection() {
   document.getElementById('btn-items-next').addEventListener('click', () => {
     if (state.selectedItems.length !== 6) return;
-    // 인벤토리 초기화 (순위 미지정 상태)
     state.inventory = [];
     showScreen('screen-inventory');
     renderInventory();
@@ -351,12 +368,10 @@ function initItemSelection() {
 }
 
 /* ── 4. 인벤토리 드래그&드롭 ── */
-
 function renderInventory() {
   const pool = document.getElementById('card-pool');
   pool.innerHTML = '';
 
-  // 잠금 메시지
   const existingLock = document.querySelector('.inventory-locked-msg');
   if (existingLock) existingLock.remove();
 
@@ -369,7 +384,6 @@ function renderInventory() {
     );
   }
 
-  // 슬롯 초기화
   for (let rank = 1; rank <= 6; rank++) {
     const zone = document.querySelector(`.slot-drop-zone[data-rank="${rank}"]`);
     zone.innerHTML = '';
@@ -382,7 +396,6 @@ function renderInventory() {
     }
   }
 
-  // 풀에 순위 미배정 아이템
   const rankedCodes = state.inventory.map(i => i.code);
   state.selectedItems.forEach(code => {
     if (!rankedCodes.includes(code)) {
@@ -397,7 +410,6 @@ function renderInventory() {
 
   updateInventoryStatus();
 
-  // 버튼 (뒤로 가기는 아이템 선택으로)
   document.getElementById('btn-inventory-back').onclick = () => {
     if (state.inventoryLocked) return;
     showScreen('screen-items');
@@ -408,7 +420,6 @@ function renderInventory() {
       document.getElementById('inventory-status').textContent = '6개 아이템 모두 순위를 배정해주세요.';
       return;
     }
-    // 보안코드가 이미 설정된 이후엔 재설정 불가
     if (state.inventoryLocked) {
       alert('이미 보안 코드가 설정되어 변경할 수 없습니다.');
       return;
@@ -440,20 +451,35 @@ function createMiniCard(item) {
 }
 
 function initDragDrop() {
-  // 이전 이벤트 리스너 정리
   dragCleanupFns.forEach(fn => fn());
   dragCleanupFns = [];
 
-  const pool = document.getElementById('card-pool');
   const zones = document.querySelectorAll('.slot-drop-zone');
 
   let draggingCard = null;
   let draggingClone = null;
   let originZone = null;
+  let activeTouchId = null; // 멀티터치 시 시작한 손가락만 추적
 
   function getClientXY(e) {
-    if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    if (e.changedTouches && e.changedTouches.length > 0) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    if (e.touches && e.touches.length > 0) {
+      if (activeTouchId !== null) {
+        for (let t of e.touches) {
+          if (t.identifier === activeTouchId) return { x: t.clientX, y: t.clientY };
+        }
+      }
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    if (e.changedTouches && e.changedTouches.length > 0) {
+      if (activeTouchId !== null) {
+        for (let t of e.changedTouches) {
+          if (t.identifier === activeTouchId) return { x: t.clientX, y: t.clientY };
+        }
+        // 시작한 손가락이 아니면 무시 신호
+        return null;
+      }
+      return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    }
     return { x: e.clientX, y: e.clientY };
   }
 
@@ -473,10 +499,18 @@ function initDragDrop() {
 
   function startDrag(e, card) {
     if (state.inventoryLocked) return;
+    if (draggingCard) return; // 이미 드래그 중이면 새 드래그 무시 (멀티터치 보호)
+
+    if (e.touches && e.touches.length > 0) {
+      activeTouchId = e.touches[0].identifier;
+    }
+
     draggingCard = card;
     originZone = card.closest('.slot-drop-zone') || card.closest('#card-pool');
 
-    const { x, y } = getClientXY(e);
+    const xy = getClientXY(e);
+    if (!xy) { draggingCard = null; activeTouchId = null; return; }
+    const { x, y } = xy;
     const rect = card.getBoundingClientRect();
 
     draggingClone = card.cloneNode(true);
@@ -492,7 +526,9 @@ function initDragDrop() {
 
   function moveDrag(e) {
     if (!draggingCard) return;
-    const { x, y } = getClientXY(e);
+    const xy = getClientXY(e);
+    if (!xy) return; // 다른 손가락의 움직임은 무시
+    const { x, y } = xy;
     draggingClone.style.left = `${x}px`;
     draggingClone.style.top = `${y}px`;
 
@@ -503,16 +539,7 @@ function initDragDrop() {
     e.preventDefault();
   }
 
-  function endDrag(e) {
-    if (!draggingCard) return;
-    const { x, y } = getClientXY(e);
-
-    const el = getElementAtPoint(x, y, draggingClone);
-    const targetZone = findSlotZone(el);
-    const targetPool = findPool(el);
-
-    zones.forEach(z => z.classList.remove('drag-over'));
-
+  function finishDrag(targetZone, targetPool) {
     if (targetZone) {
       dropToZone(draggingCard, targetZone);
     } else if (targetPool) {
@@ -525,8 +552,44 @@ function initDragDrop() {
     if (draggingClone) { draggingClone.remove(); draggingClone = null; }
     draggingCard = null;
     originZone = null;
+    activeTouchId = null;
     updateInventoryState();
     updateInventoryStatus();
+    saveSession();
+  }
+
+  function endDrag(e) {
+    if (!draggingCard) return;
+
+    // 멀티터치: 시작한 손가락이 아니면 무시
+    if (e.changedTouches && activeTouchId !== null) {
+      let isOurTouch = false;
+      for (let t of e.changedTouches) {
+        if (t.identifier === activeTouchId) isOurTouch = true;
+      }
+      if (!isOurTouch) return;
+    }
+
+    const xy = getClientXY(e);
+    if (!xy) {
+      // 위치를 못 구해도 드래그는 반드시 종료 (멈춤 방지)
+      finishDrag(null, null);
+      return;
+    }
+    const { x, y } = xy;
+
+    const el = getElementAtPoint(x, y, draggingClone);
+    const targetZone = findSlotZone(el);
+    const targetPool = findPool(el);
+
+    zones.forEach(z => z.classList.remove('drag-over'));
+    finishDrag(targetZone, targetPool);
+  }
+
+  // 드래그 도중 터치가 취소되는 경우(전화 수신 등) 대비 — 멈춰버리지 않도록 강제 종료
+  function cancelDrag() {
+    if (!draggingCard) return;
+    finishDrag(null, findPool(originZone));
   }
 
   function dropToZone(card, zone) {
@@ -572,6 +635,7 @@ function initDragDrop() {
   };
   const onTouchMove = e => moveDrag(e);
   const onTouchEnd = e => endDrag(e);
+  const onTouchCancel = () => cancelDrag();
 
   inventoryArea.addEventListener('mousedown', onMouseDown);
   document.addEventListener('mousemove', onMouseMove);
@@ -579,8 +643,8 @@ function initDragDrop() {
   inventoryArea.addEventListener('touchstart', onTouchStart, { passive: false });
   document.addEventListener('touchmove', onTouchMove, { passive: false });
   document.addEventListener('touchend', onTouchEnd);
+  document.addEventListener('touchcancel', onTouchCancel);
 
-  // 클린업 함수 등록
   dragCleanupFns.push(() => {
     inventoryArea.removeEventListener('mousedown', onMouseDown);
     document.removeEventListener('mousemove', onMouseMove);
@@ -588,6 +652,7 @@ function initDragDrop() {
     inventoryArea.removeEventListener('touchstart', onTouchStart);
     document.removeEventListener('touchmove', onTouchMove);
     document.removeEventListener('touchend', onTouchEnd);
+    document.removeEventListener('touchcancel', onTouchCancel);
   });
 }
 
@@ -599,7 +664,9 @@ function updateInventoryState() {
     if (card) {
       const code = card.dataset.code;
       const item = getItemByCode(code);
-      state.inventory.push({ rank, code, name: item.name, concept: item.concept });
+      if (item) {
+        state.inventory.push({ rank, code, name: item.name, concept: item.concept });
+      }
     }
   }
 }
@@ -625,7 +692,6 @@ function updateInventoryStatus() {
 
 /* ── 5. 보안 코드 ── */
 function renderSecurityScreen() {
-  // 보안코드 설정 후엔 화면 접근 불가 — 미션1으로 리다이렉트
   if (state.inventoryLocked) {
     showScreen('screen-mission1');
     renderMission1();
@@ -648,14 +714,12 @@ function renderSecurityScreen() {
   updateSecBtn();
 
   document.getElementById('btn-security-reset').onclick = () => {
-    // inventoryLocked 이후엔 초기화 불가 (이미 보안코드가 설정된 상태)
     if (state.inventoryLocked) return;
     state.securityCode = [];
     renderSecurityScreen();
   };
 
   document.getElementById('btn-security-back').onclick = () => {
-    // inventoryLocked 이후엔 뒤로가기로 보안코드 재설정 불가
     if (state.inventoryLocked) {
       showScreen('screen-mission1');
       renderMission1();
@@ -669,7 +733,6 @@ function renderSecurityScreen() {
     if (state.securityCode.length !== 3) return;
     state.inventoryLocked = true;
     assignCurses();
-    // 보안코드 설정 후 → 미션1 먼저
     showScreen('screen-mission1');
     renderMission1();
   };
@@ -683,6 +746,7 @@ function toggleSecCode(n) {
     state.securityCode.push(n);
   }
   renderSecurityScreen();
+  saveSession();
 }
 
 function renderSecSlots() {
@@ -702,7 +766,6 @@ function updateSecBtn() {
   const btnNext = document.getElementById('btn-security-next');
   btnNext.disabled = state.securityCode.length !== 3;
 
-  // 버튼 상태 업데이트
   document.querySelectorAll('.sec-btn').forEach(btn => {
     const n = parseInt(btn.dataset.num);
     btn.classList.toggle('selected', state.securityCode.includes(n));
@@ -726,7 +789,6 @@ function assignCurses() {
 
     if (curseType === 'A') {
       if (a === 1) {
-        // 특수 처리: 1순위에 저주A → 2순위 효과 약화
         curseAOnFirst = true;
         affectedRank = 2;
         affectedItemName = state.inventory.find(i => i.rank === 2)?.name;
@@ -800,7 +862,6 @@ function renderMission1() {
     renderInventory();
   };
   document.getElementById('btn-m1-next').onclick = () => {
-    // 미션1 완료 후 → 저주 인트로 → 미션2
     showScreen('screen-curse-intro');
     renderCurseIntro();
   };
@@ -819,7 +880,6 @@ function renderMission2() {
     const m2data = state.mission2[key];
     const curseType = curse.curseType;
 
-    // 저주 내용 생성
     let curseContent = '';
     if (curseType === 'A') {
       curseContent = CURSES.A.template(curse.affectedRank, curse.affectedItemName, curse.curseAOnFirst);
@@ -829,7 +889,6 @@ function renderMission2() {
       curseContent = CURSES.C.template();
     }
 
-    // 감수 선택지 힌트
     const acceptHint = curseType === 'A'
       ? `저주에도 불구하고 왜 포기할 수 없는지 — 그리고 ${curse.curseAOnFirst ? '2순위' : '1순위'} 아이템(${curse.affectedItemName})의 효과가 점점 약해지는 상황을 어떻게 받아들일지`
       : '저주에도 불구하고 왜 포기할 수 없는지';
@@ -868,7 +927,6 @@ function renderMission2() {
     `;
     container.appendChild(block);
 
-    // 라디오 이벤트
     const radios = block.querySelectorAll(`input[name="${key}-choice"]`);
     const replaceSelector = block.querySelector(`#${key}-replace-selector`);
     const labelAccept = block.querySelector(`#${key}-label-accept`);
@@ -902,7 +960,6 @@ function renderMission2() {
     renderMission1();
   };
   document.getElementById('btn-m2-next').onclick = () => {
-    // 교체 선택했는데 아이템 미선택 시 경고
     for (let idx = 0; idx < 3; idx++) {
       const key = `curse${idx + 1}`;
       const data = state.mission2[key];
@@ -957,7 +1014,6 @@ function renderMission3() {
     document.getElementById('craft-happiness-count').textContent = happinessTA.value.length;
   };
 
-  // 초기 카운터
   document.getElementById('craft-desc-count').textContent = descInput.value.length;
   document.getElementById('craft-happiness-count').textContent = happinessTA.value.length;
 
@@ -976,7 +1032,6 @@ function renderSubmitPreview() {
   const preview = document.getElementById('submit-preview');
   preview.innerHTML = '';
 
-  // 기본 정보
   let html = `
     <div class="preview-section">
       <div class="preview-section-title">[ 기본 정보 ]</div>
@@ -1034,7 +1089,6 @@ function renderSubmitPreview() {
     submitData();
   };
 
-  // 제출 완료 후 재제출 방지
   if (state.submitted) {
     const submitBtn = document.getElementById('btn-submit-final');
     submitBtn.disabled = true;
@@ -1062,12 +1116,10 @@ function initNavBar() {
         showScreen('screen-mission1');
         renderMission1();
       } else if (target === 'screen-mission2') {
-        // 미션1 방문 전에는 미션2 접근 불가
         if (!state.mission1Visited) {
           alert('미션1을 먼저 진행해주세요!');
           return;
         }
-        // 네비로 미션2 접근 시에도 저주 인트로 본 것으로 처리 → 보안코드 잠금
         state.curseIntroSeen = true;
         showScreen('screen-mission2');
         renderMission2();
@@ -1082,10 +1134,87 @@ function initNavBar() {
   });
 }
 
+/* ── 입력 변경 시 자동 저장 (디바운스) ── */
+let saveDebounceTimer = null;
+['input', 'change'].forEach(evt => {
+  document.addEventListener(evt, () => {
+    clearTimeout(saveDebounceTimer);
+    saveDebounceTimer = setTimeout(saveSession, 400);
+  });
+});
+
+/* ── 화면 복원 ── */
+function restoreToScreen(screenId) {
+  switch (screenId) {
+    case 'screen-tutorial':
+      showScreen('screen-tutorial');
+      document.getElementById('tutorial-text').textContent = TUTORIAL_TEXT;
+      document.getElementById('btn-tutorial-next').style.display = 'block';
+      document.getElementById('btn-tutorial-next').onclick = () => {
+        showScreen('screen-items');
+        renderItemGrid();
+      };
+      break;
+    case 'screen-items':
+      showScreen('screen-items');
+      renderItemGrid();
+      break;
+    case 'screen-inventory':
+      showScreen('screen-inventory');
+      renderInventory();
+      break;
+    case 'screen-security':
+      showScreen('screen-security');
+      renderSecurityScreen();
+      break;
+    case 'screen-mission1':
+      showScreen('screen-mission1');
+      renderMission1();
+      break;
+    case 'screen-curse-intro':
+      showScreen('screen-curse-intro');
+      renderCurseIntro();
+      break;
+    case 'screen-mission2':
+      showScreen('screen-mission2');
+      renderMission2();
+      break;
+    case 'screen-mission3':
+      showScreen('screen-mission3');
+      renderMission3();
+      break;
+    case 'screen-submit':
+      showScreen('screen-submit');
+      renderSubmitPreview();
+      break;
+    case 'screen-done':
+      showScreen('screen-done');
+      document.getElementById('done-student-info').textContent = `${state.studentId} ${state.studentName}`;
+      document.getElementById('btn-done-pdf').onclick = downloadPDF;
+      break;
+    default:
+      showScreen('screen-login');
+  }
+}
+
 /* ── 초기화 ── */
 document.addEventListener('DOMContentLoaded', () => {
   initLogin();
   initItemSelection();
   initNavBar();
+
+  const saved = loadSession();
+  if (saved && saved.state && saved.state.studentId && saved.currentScreen && saved.currentScreen !== 'screen-login') {
+    const resume = confirm(
+      `이전에 진행 중이던 내용이 있습니다.\n학번: ${saved.state.studentId} / 이름: ${saved.state.studentName}\n\n이어서 진행하시겠습니까?\n('취소'를 누르면 새로 시작합니다)`
+    );
+    if (resume) {
+      Object.assign(state, saved.state);
+      restoreToScreen(saved.currentScreen);
+      return;
+    } else {
+      clearSession();
+    }
+  }
   showScreen('screen-login');
 });
