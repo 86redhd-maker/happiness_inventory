@@ -883,7 +883,10 @@ function renderMission2() {
     <div class="ref-grid">
       ${notSelected.map(item => `
         <div class="ref-item">
-          <span class="ref-icon">${item.icon}</span>
+          <div class="ref-icon-wrap">
+            <img src="${item.iconImg}" alt="${item.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/>
+            <span class="ref-icon-emoji" style="display:none">${item.icon}</span>
+          </div>
           <div class="ref-text">
             <div class="ref-name">${item.name} <span class="ref-concept">(${item.concept})</span></div>
             <div class="ref-desc">${item.desc}</div>
