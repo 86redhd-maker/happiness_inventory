@@ -75,7 +75,7 @@ const CURSES = {
       const weakenTarget = curseAOnFirst
         ? `2순위 아이템(${affectedName})의 효과가 약해집니다.`
         : `1순위 아이템(${affectedName})의 효과가 약해집니다.`;
-      return `이 아이템을 사용할 때마다 <strong>${weakenTarget}</strong> 가장 소중한 것을 쓸수록, 가장 먼저 넣은 것이 사라져갑니다.`;
+      return `이 아이템을 사용할 때마다 <strong>${weakenTarget}</strong> 이 아이템을 쓸수록, 가장 먼저 넣어둔 소중한 것이 조금씩 사라져갑니다.`;
     }
   },
   B: {
@@ -874,6 +874,25 @@ function renderMission2() {
 
   const notSelected = getNotSelectedItems();
   const curseLabels = { A: '저주A', B: '저주B', C: '저주C' };
+
+  // 자판기에 남은 아이템 참고 카드 (정보 제공용, 선택 로직과 무관)
+  const refBox = document.createElement('div');
+  refBox.className = 'not-selected-reference';
+  refBox.innerHTML = `
+    <div class="ref-title">📦 자판기에 남겨둔 아이템 (교체 시 가져올 수 있는 4개)</div>
+    <div class="ref-grid">
+      ${notSelected.map(item => `
+        <div class="ref-item">
+          <span class="ref-icon">${item.icon}</span>
+          <div class="ref-text">
+            <div class="ref-name">${item.name} <span class="ref-concept">(${item.concept})</span></div>
+            <div class="ref-desc">${item.desc}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  container.appendChild(refBox);
 
   state.curses.forEach((curse, idx) => {
     const key = `curse${idx + 1}`;
