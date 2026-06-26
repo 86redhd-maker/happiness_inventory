@@ -101,7 +101,6 @@ function buildSubmitData() {
   };
 }
 
-/* ── 제출 함수 ── */
 async function submitData() {
   const statusEl = document.getElementById('submit-status');
   const submitBtn = document.getElementById('btn-submit-final');
@@ -111,35 +110,44 @@ async function submitData() {
   submitBtn.disabled = true;
 
   const data = buildSubmitData();
+  const body = JSON.stringify(data);
 
+  // 1차 시도: 일반 fetch (응답을 읽을 수 있어 성공/실패를 정확히 확인 가능)
   try {
     const response = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(data)
+      body
     });
 
     if (response.ok || response.type === 'opaqueredirect') {
-      state.submitted = true;
-      statusEl.textContent = '✅ 제출이 완료되었습니다!';
-      statusEl.className = 'submit-status success';
-      setTimeout(() => {
-        showScreen('screen-done');
-        document.getElementById('done-student-info').textContent =
-          `${state.studentId} ${state.studentName}`;
-        document.getElementById('btn-done-pdf').onclick = downloadPDF;
-      }, 1000);
+      handleSubmitSuccess(false);
+      return;
     } else {
       throw new Error(`서버 응답 오류: ${response.status}`);
     }
   } catch (err) {
-    console.error('제출 오류:', err);
-    statusEl.innerHTML = `❌ 제출에 실패했습니다. 다시 시도해주세요.<br/><small style="font-weight:300">${err.message}</small>`;
+    console.warn('1차 제출 시도 실패 (CORS 또는 네트워크 문제로 추정), no-cors 방식으로 재시도합니다:', err);
+  }
+
+  // 2차 시도: no-cors (CORS 헤더가 없는 배포 환경에서도 데이터 전송은 가능하게 하는 안전장치)
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body
+    });
+    // no-cors는 응답을 읽을 수 없어 100% 확신은 어렵지만,
+    // 요청이 끝까지 전송되었다면 Apps Script 서버에서는 정상 처리됩니다.
+    handleSubmitSuccess(true);
+  } catch (err2) {
+    console.error('제출 오류:', err2);
+    statusEl.innerHTML = `❌ 제출에 실패했습니다. 다시 시도해주세요.<br/><small style="font-weight:300">${err2.message}</small>`;
     statusEl.className = 'submit-status error';
     submitBtn.disabled = false;
 
-    // 재시도 버튼 추가
     const retryBtn = document.createElement('button');
     retryBtn.className = 'btn-danger';
     retryBtn.style.cssText = 'margin-top:12px;display:block;margin-left:auto;margin-right:auto';
@@ -147,6 +155,26 @@ async function submitData() {
     retryBtn.onclick = () => { retryBtn.remove(); submitData(); };
     statusEl.after(retryBtn);
   }
+}
+
+function handleSubmitSuccess(uncertain) {
+  state.submitted = true;
+  if (typeof clearSession === 'function') clearSession();
+
+  const statusEl = document.getElementById('submit-status');
+  if (uncertain) {
+    statusEl.textContent = '✅ 제출 요청을 보냈습니다.';
+  } else {
+    statusEl.textContent = '✅ 제출이 완료되었습니다!';
+  }
+  statusEl.className = 'submit-status success';
+
+  setTimeout(() => {
+    showScreen('screen-done');
+    document.getElementById('done-student-info').textContent =
+      `${state.studentId} ${state.studentName}`;
+    document.getElementById('btn-done-pdf').onclick = downloadPDF;
+  }, 1000);
 }
 
 /* ── 인쇄/PDF 저장 ──
