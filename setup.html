@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>행복 인벤토리 — 선생님용 설정 페이지</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #eef4fb;
+    color: #2c2c3e;
+    line-height: 1.7;
+    padding: 32px 16px 80px;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 900; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #5a5a7a; margin-bottom: 28px; }
+  .step {
+    background: #fffef9; border: 2px solid #c8d8e8; border-radius: 10px;
+    padding: 20px 22px; margin-bottom: 18px;
+    box-shadow: 4px 4px 0 #b8c8dc;
+  }
+  .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #4a7fd4; color: #fff; font-weight: 900; font-size: 13px;
+    margin-right: 8px;
+  }
+  .step-title { font-size: 15px; font-weight: 700; display: inline-block; vertical-align: middle; }
+  .step-desc { font-size: 13px; color: #5a5a7a; margin: 10px 0 12px; }
+  textarea {
+    width: 100%; height: 160px; font-family: 'Courier New', monospace; font-size: 11px;
+    border: 1px solid #c8d8e8; border-radius: 6px; padding: 10px; resize: vertical;
+    background: #f8fafe; color: #333;
+  }
+  .copy-btn, .gen-btn {
+    margin-top: 10px; padding: 9px 18px; font-size: 13px; font-weight: 700;
+    border: 2px solid #2c2c3e; border-radius: 4px; background: #4a7fd4; color: #fff;
+    cursor: pointer; box-shadow: 2px 2px 0 #2c2c3e;
+  }
+  .copy-btn:hover, .gen-btn:hover { background: #3a6fc4; }
+  .copy-btn.copied { background: #2dac5c; }
+  input[type="text"] {
+    width: 100%; padding: 10px 12px; font-size: 13px;
+    border: 2px solid #2c2c3e; border-radius: 6px; margin-top: 8px;
+  }
+  .result-box {
+    display: none; margin-top: 16px; padding: 16px;
+    background: #eaf7ee; border: 2px solid #2dac5c; border-radius: 8px;
+  }
+  .result-box.visible { display: block; }
+  .result-label { font-size: 12px; font-weight: 700; color: #2dac5c; margin-bottom: 8px; }
+  .result-link {
+    word-break: break-all; font-size: 12px; background: #fff; padding: 10px;
+    border-radius: 6px; border: 1px solid #cce; margin-bottom: 10px;
+  }
+  .warn { font-size: 12px; color: #c84030; margin-top: 10px; }
+  .badge {
+    display: inline-block; background: #fff3cd; border: 1px solid #f0a500;
+    color: #7a5a00; font-size: 11px; font-weight: 700; padding: 2px 8px;
+    border-radius: 4px; margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎮 행복 인벤토리 — 선생님용 설정 페이지</h1>
+  <p class="subtitle">코드를 건드리지 않고도, 학생 제출 데이터가 <strong>본인의 구글 시트</strong>로 들어오는 링크를 만들 수 있습니다.</p>
+
+  <div class="step">
+    <span class="step-num">1</span><span class="step-title">새 구글 스프레드시트 만들기</span>
+    <p class="step-desc">구글 드라이브에서 빈 스프레드시트를 하나 새로 만드세요. (이름은 자유롭게)</p>
+  </div>
+
+  <div class="step">
+    <span class="step-num">2</span><span class="step-title">Apps Script 코드 붙여넣기</span>
+    <p class="step-desc">방금 만든 스프레드시트에서 <strong>확장 프로그램 → Apps Script</strong> 클릭 → 기존 코드를 모두 지우고, 아래 코드를 <strong>그대로 통째로</strong> 붙여넣은 뒤 저장(Ctrl+S)하세요.</p>
+    <textarea id="scriptCode" readonly></textarea>
+    <button class="copy-btn" id="copyCodeBtn">📋 코드 복사하기</button>
+  </div>
+
+  <div class="step">
+    <span class="step-num">3</span><span class="step-title">웹 앱으로 배포하기</span>
+    <p class="step-desc">
+      Apps Script 에디터 우측 상단 <strong>배포 → 새 배포</strong> 클릭 → ⚙️ 아이콘에서 <strong>웹 앱</strong> 선택<br/>
+      · 실행 사용자: <strong>나</strong><br/>
+      · 액세스 권한: <strong>모든 사용자</strong><br/>
+      배포 후 나오는 <strong>웹 앱 URL을 복사</strong>하세요. (구글 권한 승인 팝업이 뜨면 "고급" → 허용)
+    </p>
+  </div>
+
+  <div class="step">
+    <span class="step-num">4</span><span class="step-title">학생용 링크 만들기</span>
+    <p class="step-desc">위에서 복사한 배포 URL을 아래에 붙여넣고 버튼을 누르세요.</p>
+    <input type="text" id="urlInput" placeholder="https://script.google.com/macros/s/ ... /exec" />
+    <button class="gen-btn" id="genBtn">🔗 학생용 링크 만들기</button>
+
+    <div class="result-box" id="resultBox">
+      <div class="result-label">✅ 완성! 이 링크를 학생들에게 공유하세요</div>
+      <div class="result-link" id="resultLink"></div>
+      <button class="copy-btn" id="copyLinkBtn">📋 링크 복사하기</button>
+      <p class="warn">⚠ 이 링크로 제출된 데이터는 <strong>본인의 구글 시트로만</strong> 들어가며, 다른 선생님 데이터와 섞이지 않습니다.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const APPS_SCRIPT_TEMPLATE = `const SHEET_NAME_SUMMARY = '요약';
+
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    updateStudentSheet(ss, data);
+    updateSummarySheet(ss, data);
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ result: 'success' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ result: 'error', message: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function updateSummarySheet(ss, data) {
+  let sheet = ss.getSheetByName(SHEET_NAME_SUMMARY);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME_SUMMARY);
+    sheet.appendRow(['학번', '이름', '제출시각', '보안코드', '개별시트링크']);
+    sheet.getRange(1, 1, 1, 5).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  const sheetName = \`\${data.studentId}_\${data.studentName}\`;
+  const sheetGid = getSheetGid(ss, sheetName);
+  const sheetUrl = \`\${ss.getUrl()}#gid=\${sheetGid}\`;
+
+  const allData = sheet.getDataRange().getValues();
+  let existingRow = -1;
+  for (let i = 1; i < allData.length; i++) {
+    if (String(allData[i][0]) === String(data.studentId)) {
+      existingRow = i + 1;
+      break;
+    }
+  }
+
+  const timestamp = new Date(data.timestamp).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  const securityCodeText = data.securityCode.join('-');
+  const targetRow = existingRow > 0 ? existingRow : sheet.getLastRow() + 1;
+
+  const codeCell = sheet.getRange(targetRow, 4);
+  codeCell.setNumberFormat('@');
+  codeCell.setValue(securityCodeText);
+
+  sheet.getRange(targetRow, 1).setValue(data.studentId);
+  sheet.getRange(targetRow, 2).setValue(data.studentName);
+  sheet.getRange(targetRow, 3).setValue(timestamp);
+
+  const linkCell = sheet.getRange(targetRow, 5);
+  linkCell.setFormula(\`=HYPERLINK("\${sheetUrl}", "개별 답안 보기 →")\`);
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 2) {
+    sheet.getRange(2, 1, lastRow - 1, 5).sort({ column: 1, ascending: true });
+  }
+}
+
+function getSheetGid(ss, sheetName) {
+  const sheet = ss.getSheetByName(sheetName);
+  return sheet ? sheet.getSheetId() : 0;
+}
+
+function updateStudentSheet(ss, data) {
+  const sheetName = \`\${data.studentId}_\${data.studentName}\`;
+  let sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+  } else {
+    sheet.clearContents();
+  }
+  const rows = [];
+  rows.push(['[기본 정보]', '']);
+  rows.push(['학번', data.studentId]);
+  rows.push(['이름', data.studentName]);
+  rows.push(['제출시각', new Date(data.timestamp).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })]);
+  rows.push(['', '']);
+  rows.push(['[인벤토리]', '']);
+  for (let rank = 1; rank <= 6; rank++) {
+    const inv = data.inventory[\`rank\${rank}\`];
+    if (inv) rows.push([\`\${rank}순위\`, \`\${inv.name} (\${inv.concept})\`]);
+  }
+  const notSelectedItems = ITEMS_DATA.filter(i => data.notSelected.includes(i.code)).map(i => i.name);
+  rows.push(['미선택', notSelectedItems.join(', ')]);
+  rows.push(['보안 코드', data.securityCode.join('-')]);
+  rows.push(['', '']);
+  rows.push(['[MISSION 1 — 나의 행복 스캔]', '']);
+  ['q1','q2','q3'].forEach((key, idx) => {
+    const q = data.mission1[key];
+    rows.push([\`(\${idx+1}) \${idx+1}순위: \${q.itemName}\`, '']);
+    rows.push(['글자수', \`\${q.charCount}자\`]);
+    rows.push(['서술', q.response]);
+    rows.push(['', '']);
+  });
+  rows.push(['[MISSION 2 — 저주 이벤트]', '']);
+  const curseLabels = { A: '저주A', B: '저주B', C: '저주C' };
+  ['curse1','curse2','curse3'].forEach((key, idx) => {
+    const c = data.mission2[key];
+    rows.push([\`(\${idx+1}) \${curseLabels[c.curseType]} → \${c.rank}순위: \${c.itemName}\`, '']);
+    rows.push(['선택', c.choice + (c.newItem ? \` → \${c.newItem.name}\` : '')]);
+    rows.push(['글자수', \`\${c.charCount}자\`]);
+    rows.push(['서술', c.response]);
+    rows.push(['', '']);
+  });
+  rows.push(['[MISSION 3 — 아이템 크래프팅]', '']);
+  rows.push(['조합', \`\${data.mission3.item1?.name || ''} + \${data.mission3.item2?.name || ''}\`]);
+  rows.push(['새 아이템', data.mission3.newItemName]);
+  rows.push(['설명', data.mission3.newItemDesc]);
+  rows.push(['행복 서술 글자수', \`\${data.mission3.charCount}자\`]);
+  rows.push(['행복 서술', data.mission3.happinessResponse]);
+
+  sheet.getRange(1, 1, rows.length, 2).setValues(rows);
+
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i][0] === '보안 코드') {
+      sheet.getRange(i + 1, 2).setNumberFormat('@').setValue(rows[i][1]);
+    }
+  }
+
+  sheet.setColumnWidth(1, 180);
+  sheet.setColumnWidth(2, 500);
+  sheet.getRange(1, 1, rows.length, 1).setFontWeight('bold');
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]).startsWith('[')) {
+      sheet.getRange(i + 1, 1, 1, 2).setBackground('#e8f0fc').setFontWeight('bold');
+    }
+  }
+  sheet.getRange(1, 2, rows.length, 1).setWrap(true);
+}
+
+const ITEMS_DATA = [
+  { code: 'A', name: '무한리필 통장', concept: '경제적 안정' },
+  { code: 'B', name: '히포크라테스의 빨간 약', concept: '건강' },
+  { code: 'C', name: '레벨업의 돋보기', concept: '자아실현' },
+  { code: 'D', name: '끊어지지 않는 실전화기', concept: '의미 있는 관계' },
+  { code: 'E', name: '파이브스타 달팽이', concept: '질 높은 정주 환경' },
+  { code: 'F', name: '만인의 확성기', concept: '민주주의와 자유' },
+  { code: 'G', name: '황금 티켓 뭉치', concept: '여가와 문화생활' },
+  { code: 'H', name: '거울 도끼', concept: '도덕적 실천' },
+  { code: 'I', name: '스포트라이트 배지', concept: '사회적 인정' },
+  { code: 'J', name: '전설의 유리 거북이', concept: '안전' }
+];`;
+
+document.getElementById('scriptCode').value = APPS_SCRIPT_TEMPLATE;
+
+document.getElementById('copyCodeBtn').addEventListener('click', async () => {
+  const ta = document.getElementById('scriptCode');
+  ta.select();
+  try {
+    await navigator.clipboard.writeText(ta.value);
+  } catch (e) {
+    document.execCommand('copy');
+  }
+  const btn = document.getElementById('copyCodeBtn');
+  btn.textContent = '✅ 복사됨!';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = '📋 코드 복사하기'; btn.classList.remove('copied'); }, 1800);
+});
+
+document.getElementById('genBtn').addEventListener('click', () => {
+  const input = document.getElementById('urlInput').value.trim();
+  const resultBox = document.getElementById('resultBox');
+  if (!input || !input.startsWith('https://script.google.com/')) {
+    alert('올바른 Apps Script 웹 앱 URL을 붙여넣어주세요.\n(https://script.google.com/macros/... 형태)');
+    return;
+  }
+  const baseUrl = window.location.href.replace(/setup\.html.*$/i, '');
+  const finalLink = baseUrl + '?script=' + encodeURIComponent(input);
+  document.getElementById('resultLink').textContent = finalLink;
+  resultBox.classList.add('visible');
+});
+
+document.getElementById('copyLinkBtn').addEventListener('click', async () => {
+  const text = document.getElementById('resultLink').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  const btn = document.getElementById('copyLinkBtn');
+  btn.textContent = '✅ 복사됨!';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = '📋 링크 복사하기'; btn.classList.remove('copied'); }, 1800);
+});
+</script>
+</body>
+</html>
