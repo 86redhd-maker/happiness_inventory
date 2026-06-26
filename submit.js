@@ -112,7 +112,7 @@ async function submitData() {
   const data = buildSubmitData();
   const body = JSON.stringify(data);
 
-  // 1차 시도: 일반 fetch (응답을 읽을 수 있어 성공/실패를 정확히 확인 가능)
+  // 1차 시도: 일반 fetch (응답을 읽을 수 있어 성공/실패를 확실하게 확인 가능)
   try {
     const response = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
@@ -122,51 +122,24 @@ async function submitData() {
     });
 
     if (response.ok || response.type === 'opaqueredirect') {
-      handleSubmitSuccess(false);
+      handleSubmitSuccess();
       return;
     } else {
       throw new Error(`서버 응답 오류: ${response.status}`);
     }
   } catch (err) {
-    console.warn('1차 제출 시도 실패 (CORS 또는 네트워크 문제로 추정), no-cors 방식으로 재시도합니다:', err);
-  }
-
-  // 2차 시도: no-cors (CORS 헤더가 없는 배포 환경에서도 데이터 전송은 가능하게 하는 안전장치)
-  try {
-    await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body
-    });
-    // no-cors는 응답을 읽을 수 없어 100% 확신은 어렵지만,
-    // 요청이 끝까지 전송되었다면 Apps Script 서버에서는 정상 처리됩니다.
-    handleSubmitSuccess(true);
-  } catch (err2) {
-    console.error('제출 오류:', err2);
-    statusEl.innerHTML = `❌ 제출에 실패했습니다. 다시 시도해주세요.<br/><small style="font-weight:300">${err2.message}</small>`;
-    statusEl.className = 'submit-status error';
-    submitBtn.disabled = false;
-
-    const retryBtn = document.createElement('button');
-    retryBtn.className = 'btn-danger';
-    retryBtn.style.cssText = 'margin-top:12px;display:block;margin-left:auto;margin-right:auto';
-    retryBtn.textContent = '다시 시도';
-    retryBtn.onclick = () => { retryBtn.remove(); submitData(); };
-    statusEl.after(retryBtn);
+    console.warn('1차 제출 시도 실패:', err);
+    showSubmitFailure(statusEl, submitBtn, err.message, true);
   }
 }
 
-function handleSubmitSuccess(uncertain) {
+/* 확실한 성공만 이 함수를 통과합니다. */
+function handleSubmitSuccess() {
   state.submitted = true;
   if (typeof clearSession === 'function') clearSession();
 
   const statusEl = document.getElementById('submit-status');
-  if (uncertain) {
-    statusEl.textContent = '✅ 제출 요청을 보냈습니다.';
-  } else {
-    statusEl.textContent = '✅ 제출이 완료되었습니다!';
-  }
+  statusEl.textContent = '✅ 제출이 완료되었습니다!';
   statusEl.className = 'submit-status success';
 
   setTimeout(() => {
@@ -175,6 +148,24 @@ function handleSubmitSuccess(uncertain) {
       `${state.studentId} ${state.studentName}`;
     document.getElementById('btn-done-pdf').onclick = downloadPDF;
   }, 1000);
+}
+
+/* 실패(또는 확인 불가) 시 — 절대 화면을 넘기지 않고, 학생이 여기서 빠져나가지 못하게 함 */
+function showSubmitFailure(statusEl, submitBtn, message, canRetryNoCors) {
+  statusEl.innerHTML = `❌ 제출에 실패했습니다. 인터넷 연결을 확인하고 다시 시도해주세요.<br/><small style="font-weight:300">${message}</small><br/><small style="font-weight:700;color:#c84030">⚠ 계속 실패하면 화면을 닫지 말고 선생님께 바로 알려주세요.</small>`;
+  statusEl.className = 'submit-status error';
+  submitBtn.disabled = false;
+
+  const oldRetry = document.getElementById('btn-submit-retry');
+  if (oldRetry) oldRetry.remove();
+
+  const retryBtn = document.createElement('button');
+  retryBtn.id = 'btn-submit-retry';
+  retryBtn.className = 'btn-danger';
+  retryBtn.style.cssText = 'margin-top:12px;display:block;margin-left:auto;margin-right:auto';
+  retryBtn.textContent = '다시 시도';
+  retryBtn.onclick = () => { retryBtn.remove(); submitData(); };
+  statusEl.after(retryBtn);
 }
 
 /* ── 인쇄/PDF 저장 ──
