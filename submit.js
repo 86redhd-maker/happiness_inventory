@@ -5,7 +5,28 @@
 
 /* ── Google Apps Script 웹앱 URL ──
    배포 후 이 URL을 실제 주소로 교체하세요 */
-const APPS_SCRIPT_URL = '여기에_지금_쓰시는_실제_URL';
+/* ── Google Apps Script 웹앱 URL ──
+   기본값: 관리자(본인) 반의 URL.
+   다른 선생님이 이 사이트를 쓸 때는 공유받은 링크 끝에
+   ?script=그선생님의구글시트URL 이 자동으로 붙어있어서,
+   그 데이터는 그 선생님의 구글시트로 들어갑니다.
+   (링크는 setup.html에서 자동 생성됨 — 코드 수정 필요 없음) */
+const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyaHsUXRqh3RpQOADNGc1Lbvc_Jwjis8XF9XWhxUaW7NPlpqbxfacGTnwu7Q-wE_G7Zjw/exec';
+
+function getAppsScriptURL() {
+  const params = new URLSearchParams(window.location.search);
+  const fromParam = params.get('script');
+  if (fromParam) {
+    try {
+      return decodeURIComponent(fromParam);
+    } catch (e) {
+      return fromParam;
+    }
+  }
+  return DEFAULT_APPS_SCRIPT_URL;
+}
+
+const APPS_SCRIPT_URL = getAppsScriptURL();
 
 /* ── 전송 데이터 구성 ── */
 function buildSubmitData() {
